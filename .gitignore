@@ -1,6 +1,8 @@
 # ─── Backend ───────────────────────────────
 .gradle
 backend/build/
+# Gradle 툴체인 자동 다운로드 JDK (절대 커밋 금지)
+backend/src/main/java/com/ongs/intranet/oracleJdk*/
 !backend/gradle/wrapper/gradle-wrapper.jar
 !backend/**/src/main/**/build/
 !backend/**/src/test/**/build/
