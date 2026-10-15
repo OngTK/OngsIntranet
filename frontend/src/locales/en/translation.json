@@ -1,0 +1,26 @@
+{
+  "common": {
+    "confirm": "Confirm",
+    "cancel": "Cancel",
+    "save": "Save",
+    "delete": "Delete",
+    "edit": "Edit",
+    "search": "Search",
+    "loading": "Loading...",
+    "error": "An error occurred.",
+    "noData": "No data available."
+  },
+  "auth": {
+    "login": "Login",
+    "logout": "Logout",
+    "loginWithGoogle": "Sign in with Google"
+  },
+  "nav": {
+    "attendance": "Attendance",
+    "calendar": "Calendar",
+    "document": "Approvals",
+    "notice": "Notices",
+    "profile": "Profile",
+    "admin": "Admin"
+  }
+}
