@@ -79,8 +79,9 @@ Google Workspace 계정 기반으로 운영되며, Google Calendar와 연동하�
 
 - **최종 업데이트**: 2026-10-15
 - **완료된 스프린트**: 없음
-- **진행 중**: 초기 설계
-- **다음 작업**: 프로젝트 초기 세팅 (Spring Boot, React)
+- **진행 중**: Sprint-01
+- **완료된 작업**: 프로젝트 초기 세팅 (Spring Boot 4.1.1 + React 19 + Vite, PR #1 → develop 머지 완료)
+- **다음 작업**: Sprint-01 계획 문서 작성 (`docs/sprints/sprint-01.md`) → 인증 기능 구현
 - **미결 사항**: 없음
 
 ## 브랜치 전략
