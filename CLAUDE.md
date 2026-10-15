@@ -83,6 +83,52 @@ Google Workspace 계정 기반으로 운영되며, Google Calendar와 연동하�
 - **다음 작업**: 프로젝트 초기 세팅 (Spring Boot, React)
 - **미결 사항**: 없음
 
+## 브랜치 전략
+
+### 브랜치 구조
+- `main`: 배포용 — 직접 커밋 금지, develop에서만 머지
+- `develop`: 개발 통합 브랜치 — 모든 작업의 시작점
+- `docs/{스프린트명}-{내용}`: 설계·기획 문서 작업
+- `feature/{스프린트명}-{기능명}`: 기능 코드 구현
+- `fix/{내용}`: 버그 수정
+- `refactor/{내용}`: 코드 개선 (기능 변경 없음)
+
+### 브랜치 prefix 규칙
+| prefix | 용도 |
+|--------|------|
+| docs/ | ERD, API 스펙, 스프린트 계획 등 설계 문서 작업 |
+| feature/ | 기능 코드 구현 |
+| fix/ | 버그 수정 |
+| refactor/ | 코드 개선 |
+
+### 스프린트 단위 작업 순서
+1. develop에서 `docs/{sprint-XX}-design` 브랜치 생성
+2. 설계 문서 작성 (ERD, API 스펙, 화면 설계)
+3. 검토 완료 후 develop으로 머지
+4. develop에서 `feature/{sprint-XX}-{기능명}` 브랜치 생성
+5. 코드 구현 및 테스트
+6. 완료 후 develop으로 머지
+
+### 커밋 메시지 규칙
+- `feat`: 새 기능 추가
+- `fix`: 버그 수정
+- `docs`: 문서 작업 (설계, 주석 등)
+- `refactor`: 코드 개선
+- `test`: 테스트 추가·수정
+- `chore`: 빌드·설정 변경
+
+예시:
+- `feat: 사용자 로그인 API 구현`
+- `docs: sprint-01 ERD 초안 작성`
+- `fix: JWT 토큰 만료 처리 오류 수정`
+
+### 에이전트 작업 시 필수 확인
+- 작업 시작 전 반드시 현재 브랜치 확인 (`git branch`)
+- 항상 develop에서 새 브랜치 분기
+- 설계 문서 작업은 `docs/` 브랜치에서만
+- 코드 작업은 `feature/` 브랜치에서만
+- `main`에 직접 커밋 금지
+
 ## 알려진 이슈
 
 - 없음
