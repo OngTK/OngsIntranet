@@ -1,0 +1,26 @@
+{
+  "common": {
+    "confirm": "確認",
+    "cancel": "キャンセル",
+    "save": "保存",
+    "delete": "削除",
+    "edit": "編集",
+    "search": "検索",
+    "loading": "読み込み中...",
+    "error": "エラーが発生しました。",
+    "noData": "データがありません。"
+  },
+  "auth": {
+    "login": "ログイン",
+    "logout": "ログアウト",
+    "loginWithGoogle": "Googleアカウントでログイン"
+  },
+  "nav": {
+    "attendance": "勤怠管理",
+    "calendar": "カレンダー",
+    "document": "文書決裁",
+    "notice": "お知らせ",
+    "profile": "プロフィール",
+    "admin": "管理者"
+  }
+}

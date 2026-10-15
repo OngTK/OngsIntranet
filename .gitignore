@@ -1,0 +1,37 @@
+# ─── Backend ───────────────────────────────
+.gradle
+backend/build/
+!backend/gradle/wrapper/gradle-wrapper.jar
+!backend/**/src/main/**/build/
+!backend/**/src/test/**/build/
+backend/.idea
+backend/*.iws
+backend/*.iml
+backend/*.ipr
+backend/out/
+backend/bin/
+backend/.apt_generated
+backend/.classpath
+backend/.factorypath
+backend/.project
+backend/.settings
+backend/.springBeans
+backend/.sts4-cache
+
+# ─── Frontend ──────────────────────────────
+frontend/node_modules
+frontend/dist
+frontend/.vite
+
+# ─── 환경 변수 (절대 커밋 금지) ───────────
+.env
+.env.local
+.env.*.local
+backend/src/main/resources/application-local.yml
+
+# ─── IDE / OS ──────────────────────────────
+.idea
+.vscode
+*.iml
+.DS_Store
+Thumbs.db

@@ -1,0 +1,41 @@
+spring:
+  application:
+    name: OngsIntranet
+  profiles:
+    active: local
+  datasource:
+    url: jdbc:mysql://localhost:3306/ongs_intranet?useSSL=false&serverTimezone=Asia/Seoul&characterEncoding=UTF-8
+    username: ${DB_USERNAME}
+    password: ${DB_PASSWORD}
+    driver-class-name: com.mysql.cj.jdbc.Driver
+  jpa:
+    hibernate:
+      ddl-auto: validate
+    properties:
+      hibernate:
+        dialect: org.hibernate.dialect.MySQLDialect
+        format_sql: true
+    open-in-view: false
+  flyway:
+    enabled: true
+    locations: classpath:db/migration
+  security:
+    oauth2:
+      client:
+        registration:
+          google:
+            client-id: ${GOOGLE_CLIENT_ID}
+            client-secret: ${GOOGLE_CLIENT_SECRET}
+            scope:
+              - openid
+              - email
+              - profile
+              - https://www.googleapis.com/auth/calendar
+
+jwt:
+  secret: ${JWT_SECRET_KEY}
+  access-token-expiry: 1800      # 30분 (초)
+  refresh-token-expiry: 1209600  # 14일 (초)
+
+server:
+  port: 8080
