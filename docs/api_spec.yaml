@@ -1,0 +1,1749 @@
+openapi: 3.0.3
+info:
+  title: OngsIntranet API
+  version: 1.0.0
+  description: |
+    사내 인트라넷 시스템 REST API 명세서.
+    인증: Google OAuth2 로그인 후 발급된 JWT Access Token을 Bearer 토큰으로 사용.
+
+servers:
+  - url: https://api.ongsIntranet.com
+    description: Production
+  - url: http://localhost:8080
+    description: Local
+
+# ─────────────────────────────────────────────
+# Security
+# ─────────────────────────────────────────────
+securitySchemes:
+  bearerAuth:
+    type: http
+    scheme: bearer
+    bearerFormat: JWT
+
+security:
+  - bearerAuth: []
+
+# ─────────────────────────────────────────────
+# 공통 응답 구조
+# ─────────────────────────────────────────────
+# 모든 응답은 아래 Wrapper를 사용한다. (변경 금지)
+# {
+#   "success": true,
+#   "data": { ... },
+#   "error": null
+# }
+# 에러 시:
+# {
+#   "success": false,
+#   "data": null,
+#   "error": { "code": "ERROR_CODE", "message": "설명" }
+# }
+
+components:
+  schemas:
+
+    # ── 공통 래퍼 ──────────────────────────
+    ApiResponse:
+      type: object
+      properties:
+        success:
+          type: boolean
+        data:
+          nullable: true
+        error:
+          nullable: true
+          $ref: '#/components/schemas/ApiError'
+
+    ApiError:
+      type: object
+      properties:
+        code:
+          type: string
+          example: UNAUTHORIZED
+        message:
+          type: string
+          example: 인증이 필요합니다.
+
+    PageMeta:
+      type: object
+      properties:
+        page:
+          type: integer
+        size:
+          type: integer
+        totalElements:
+          type: integer
+        totalPages:
+          type: integer
+
+    # ── 인증 ───────────────────────────────
+    TokenResponse:
+      type: object
+      properties:
+        accessToken:
+          type: string
+        expiresIn:
+          type: integer
+          description: Access Token 만료 시간 (초)
+
+    # ── 사용자 ─────────────────────────────
+    UserSummary:
+      type: object
+      properties:
+        id:
+          type: integer
+        name:
+          type: string
+        email:
+          type: string
+        department:
+          type: string
+        position:
+          type: string
+        profileImageUrl:
+          type: string
+          nullable: true
+
+    UserDetail:
+      allOf:
+        - $ref: '#/components/schemas/UserSummary'
+        - type: object
+          properties:
+            phone:
+              type: string
+              nullable: true
+            role:
+              type: string
+              enum: [EMPLOYEE, MANAGER, CEO, ADMIN]
+            isActive:
+              type: boolean
+            createdAt:
+              type: string
+              format: date-time
+
+    # ── 부서 ───────────────────────────────
+    Department:
+      type: object
+      properties:
+        id:
+          type: integer
+        name:
+          type: string
+        parentId:
+          type: integer
+          nullable: true
+        manager:
+          $ref: '#/components/schemas/UserSummary'
+          nullable: true
+
+    # ── 근무 예정 일정 ──────────────────────
+    WorkSchedule:
+      type: object
+      properties:
+        id:
+          type: integer
+        workDate:
+          type: string
+          format: date
+        startTime:
+          type: string
+          format: time
+          example: "09:00"
+        endTime:
+          type: string
+          format: time
+          example: "18:00"
+        workType:
+          type: string
+          enum: [OFFICE, BUSINESS_TRIP, REMOTE, OTHER]
+        workLocation:
+          type: string
+          example: "본사"
+        note:
+          type: string
+          nullable: true
+
+    WorkScheduleRequest:
+      type: object
+      required: [workDate, startTime, endTime, workType, workLocation]
+      properties:
+        workDate:
+          type: string
+          format: date
+        startTime:
+          type: string
+          format: time
+        endTime:
+          type: string
+          format: time
+        workType:
+          type: string
+          enum: [OFFICE, BUSINESS_TRIP, REMOTE, OTHER]
+        workLocation:
+          type: string
+        note:
+          type: string
+
+    # ── 출퇴근 기록 ─────────────────────────
+    AttendanceRecord:
+      type: object
+      properties:
+        id:
+          type: integer
+        workDate:
+          type: string
+          format: date
+        checkInAt:
+          type: string
+          format: date-time
+          nullable: true
+        checkOutAt:
+          type: string
+          format: date-time
+          nullable: true
+        status:
+          type: string
+          enum: [NORMAL, LATE, EARLY_LEAVE, ABSENT]
+        note:
+          type: string
+          nullable: true
+
+    # ── 휴가 ───────────────────────────────
+    LeaveType:
+      type: object
+      properties:
+        id:
+          type: integer
+        name:
+          type: string
+          example: "연차"
+        daysCount:
+          type: number
+          format: double
+          example: 1.0
+
+    LeaveBalance:
+      type: object
+      properties:
+        year:
+          type: integer
+        totalDays:
+          type: number
+        usedDays:
+          type: number
+        remainingDays:
+          type: number
+
+    LeaveRequest:
+      type: object
+      properties:
+        id:
+          type: integer
+        leaveType:
+          $ref: '#/components/schemas/LeaveType'
+        startDate:
+          type: string
+          format: date
+        endDate:
+          type: string
+          format: date
+        reason:
+          type: string
+        status:
+          type: string
+          enum: [PENDING, APPROVED, REJECTED, CANCELED]
+        approvedBy:
+          $ref: '#/components/schemas/UserSummary'
+          nullable: true
+        approvalComment:
+          type: string
+          nullable: true
+        approvedAt:
+          type: string
+          format: date-time
+          nullable: true
+        createdAt:
+          type: string
+          format: date-time
+
+    LeaveRequestCreate:
+      type: object
+      required: [leaveTypeId, startDate, endDate, reason]
+      properties:
+        leaveTypeId:
+          type: integer
+        startDate:
+          type: string
+          format: date
+        endDate:
+          type: string
+          format: date
+        reason:
+          type: string
+
+    # ── 공지사항 ────────────────────────────
+    NoticeSummary:
+      type: object
+      properties:
+        id:
+          type: integer
+        title:
+          type: string
+        author:
+          $ref: '#/components/schemas/UserSummary'
+        department:
+          type: string
+          nullable: true
+          description: null이면 전사 공지
+        isPinned:
+          type: boolean
+        viewCount:
+          type: integer
+        createdAt:
+          type: string
+          format: date-time
+
+    NoticeDetail:
+      allOf:
+        - $ref: '#/components/schemas/NoticeSummary'
+        - type: object
+          properties:
+            content:
+              type: string
+            updatedAt:
+              type: string
+              format: date-time
+
+    NoticeRequest:
+      type: object
+      required: [title, content]
+      properties:
+        title:
+          type: string
+        content:
+          type: string
+        departmentId:
+          type: integer
+          nullable: true
+          description: null이면 전사 공지
+        isPinned:
+          type: boolean
+          default: false
+
+    # ── 문서 결재 ───────────────────────────
+    DocumentTemplate:
+      type: object
+      properties:
+        id:
+          type: integer
+        name:
+          type: string
+          example: "물품구입신청서"
+        contentSchema:
+          type: object
+          description: 양식 필드 정의 (JSON)
+          example:
+            fields:
+              - key: "item"
+                label: "품목명"
+                type: "text"
+                required: true
+              - key: "amount"
+                label: "금액"
+                type: "number"
+                required: true
+        isActive:
+          type: boolean
+
+    DocumentSummary:
+      type: object
+      properties:
+        id:
+          type: integer
+        title:
+          type: string
+        templateName:
+          type: string
+          nullable: true
+        author:
+          $ref: '#/components/schemas/UserSummary'
+        status:
+          type: string
+          enum: [DRAFT, IN_PROGRESS, APPROVED, REJECTED, CANCELED]
+        currentApprover:
+          $ref: '#/components/schemas/UserSummary'
+          nullable: true
+        createdAt:
+          type: string
+          format: date-time
+
+    DocumentDetail:
+      allOf:
+        - $ref: '#/components/schemas/DocumentSummary'
+        - type: object
+          properties:
+            content:
+              type: object
+              description: 기안 내용 (JSON)
+            approvalLines:
+              type: array
+              items:
+                $ref: '#/components/schemas/ApprovalLine'
+
+    DocumentCreate:
+      type: object
+      required: [title, approverIds]
+      properties:
+        title:
+          type: string
+        templateId:
+          type: integer
+          nullable: true
+        content:
+          type: object
+        approverIds:
+          type: array
+          items:
+            type: integer
+          description: 결재 순서대로 나열
+
+    ApprovalLine:
+      type: object
+      properties:
+        orderSeq:
+          type: integer
+        approver:
+          $ref: '#/components/schemas/UserSummary'
+        status:
+          type: string
+          enum: [PENDING, APPROVED, REJECTED, SKIPPED]
+        comment:
+          type: string
+          nullable: true
+        actedAt:
+          type: string
+          format: date-time
+          nullable: true
+
+    ApprovalAction:
+      type: object
+      required: [action]
+      properties:
+        action:
+          type: string
+          enum: [APPROVE, REJECT]
+        comment:
+          type: string
+          nullable: true
+
+    # ── 캘린더 ─────────────────────────────
+    CalendarEvent:
+      type: object
+      properties:
+        id:
+          type: integer
+        googleEventId:
+          type: string
+          nullable: true
+        title:
+          type: string
+        description:
+          type: string
+          nullable: true
+        startAt:
+          type: string
+          format: date-time
+        endAt:
+          type: string
+          format: date-time
+        isAllDay:
+          type: boolean
+        location:
+          type: string
+          nullable: true
+        syncStatus:
+          type: string
+          enum: [LOCAL, SYNCED, SYNC_FAILED]
+
+    CalendarEventRequest:
+      type: object
+      required: [title, startAt, endAt]
+      properties:
+        title:
+          type: string
+        description:
+          type: string
+        startAt:
+          type: string
+          format: date-time
+        endAt:
+          type: string
+          format: date-time
+        isAllDay:
+          type: boolean
+          default: false
+        location:
+          type: string
+
+  responses:
+    Unauthorized:
+      description: 인증 실패 또는 토큰 만료
+    Forbidden:
+      description: 권한 없음
+    NotFound:
+      description: 리소스 없음
+
+# ─────────────────────────────────────────────
+# API Endpoints
+# ─────────────────────────────────────────────
+paths:
+
+  # ════════════════════════════════════════════
+  # 인증 (Auth)
+  # ════════════════════════════════════════════
+
+  /auth/google:
+    get:
+      tags: [Auth]
+      summary: Google OAuth2 로그인 리다이렉트
+      security: []
+      responses:
+        '302':
+          description: Google 로그인 페이지로 리다이렉트
+
+  /auth/google/callback:
+    get:
+      tags: [Auth]
+      summary: Google OAuth2 콜백 처리
+      description: Google 인증 완료 후 JWT 발급. 프론트엔드로 리다이렉트하며 Access Token 전달.
+      security: []
+      parameters:
+        - in: query
+          name: code
+          required: true
+          schema:
+            type: string
+      responses:
+        '302':
+          description: 프론트엔드로 리다이렉트 (토큰 포함)
+
+  /auth/refresh:
+    post:
+      tags: [Auth]
+      summary: Access Token 재발급
+      description: HttpOnly 쿠키의 Refresh Token으로 새 Access Token 발급
+      security: []
+      responses:
+        '200':
+          description: 새 Access Token 발급 성공
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/ApiResponse'
+                  - type: object
+                    properties:
+                      data:
+                        $ref: '#/components/schemas/TokenResponse'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+
+  /auth/logout:
+    post:
+      tags: [Auth]
+      summary: 로그아웃
+      description: Refresh Token 무효화 및 쿠키 삭제
+      responses:
+        '200':
+          description: 로그아웃 성공
+
+  # ════════════════════════════════════════════
+  # 사용자 / 프로필 (Users)
+  # ════════════════════════════════════════════
+
+  /api/users/me:
+    get:
+      tags: [Users]
+      summary: 내 프로필 조회
+      responses:
+        '200':
+          description: 성공
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/ApiResponse'
+                  - type: object
+                    properties:
+                      data:
+                        $ref: '#/components/schemas/UserDetail'
+    put:
+      tags: [Users]
+      summary: 내 프로필 수정
+      description: 수정 가능 필드: phone, profileImageUrl
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                phone:
+                  type: string
+                profileImageUrl:
+                  type: string
+      responses:
+        '200':
+          description: 수정 성공
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/ApiResponse'
+                  - type: object
+                    properties:
+                      data:
+                        $ref: '#/components/schemas/UserDetail'
+
+  /api/users/{id}:
+    get:
+      tags: [Users]
+      summary: 특정 직원 프로필 조회
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            type: integer
+      responses:
+        '200':
+          description: 성공
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/ApiResponse'
+                  - type: object
+                    properties:
+                      data:
+                        $ref: '#/components/schemas/UserDetail'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+  /api/users:
+    get:
+      tags: [Users]
+      summary: 직원 목록 조회
+      description: 권한 CEO/ADMIN만 전체 조회 가능. 일반 직원은 같은 부서만.
+      parameters:
+        - in: query
+          name: departmentId
+          schema:
+            type: integer
+        - in: query
+          name: keyword
+          schema:
+            type: string
+          description: 이름 또는 이메일 검색
+        - in: query
+          name: page
+          schema:
+            type: integer
+            default: 0
+        - in: query
+          name: size
+          schema:
+            type: integer
+            default: 20
+      responses:
+        '200':
+          description: 성공
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/ApiResponse'
+                  - type: object
+                    properties:
+                      data:
+                        type: object
+                        properties:
+                          content:
+                            type: array
+                            items:
+                              $ref: '#/components/schemas/UserSummary'
+                          meta:
+                            $ref: '#/components/schemas/PageMeta'
+
+  /api/admin/users/{id}/role:
+    patch:
+      tags: [Admin - Users]
+      summary: 직원 역할 변경
+      description: ADMIN 전용
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [role]
+              properties:
+                role:
+                  type: string
+                  enum: [EMPLOYEE, MANAGER, CEO, ADMIN]
+      responses:
+        '200':
+          description: 성공
+        '403':
+          $ref: '#/components/responses/Forbidden'
+
+  /api/admin/users/{id}/status:
+    patch:
+      tags: [Admin - Users]
+      summary: 직원 활성/비활성 처리
+      description: ADMIN 전용
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [isActive]
+              properties:
+                isActive:
+                  type: boolean
+      responses:
+        '200':
+          description: 성공
+        '403':
+          $ref: '#/components/responses/Forbidden'
+
+  # ════════════════════════════════════════════
+  # 부서 (Departments)
+  # ════════════════════════════════════════════
+
+  /api/departments:
+    get:
+      tags: [Departments]
+      summary: 부서 목록 조회 (트리 구조)
+      responses:
+        '200':
+          description: 성공
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/ApiResponse'
+                  - type: object
+                    properties:
+                      data:
+                        type: array
+                        items:
+                          $ref: '#/components/schemas/Department'
+    post:
+      tags: [Departments]
+      summary: 부서 생성
+      description: ADMIN 전용
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [name]
+              properties:
+                name:
+                  type: string
+                parentId:
+                  type: integer
+                  nullable: true
+                managerId:
+                  type: integer
+                  nullable: true
+      responses:
+        '201':
+          description: 생성 성공
+
+  /api/departments/{id}:
+    put:
+      tags: [Departments]
+      summary: 부서 수정
+      description: ADMIN 전용
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                name:
+                  type: string
+                managerId:
+                  type: integer
+      responses:
+        '200':
+          description: 수정 성공
+    delete:
+      tags: [Departments]
+      summary: 부서 삭제
+      description: ADMIN 전용. 소속 직원이 없어야 삭제 가능.
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            type: integer
+      responses:
+        '204':
+          description: 삭제 성공
+
+  # ════════════════════════════════════════════
+  # 근태 - 근무 예정 일정 (Work Schedules)
+  # ════════════════════════════════════════════
+
+  /api/work-schedules:
+    get:
+      tags: [Attendance - Schedule]
+      summary: 내 근무 예정 일정 조회
+      parameters:
+        - in: query
+          name: from
+          required: true
+          schema:
+            type: string
+            format: date
+        - in: query
+          name: to
+          required: true
+          schema:
+            type: string
+            format: date
+      responses:
+        '200':
+          description: 성공
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/ApiResponse'
+                  - type: object
+                    properties:
+                      data:
+                        type: array
+                        items:
+                          $ref: '#/components/schemas/WorkSchedule'
+    post:
+      tags: [Attendance - Schedule]
+      summary: 근무 예정 일정 등록
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/WorkScheduleRequest'
+      responses:
+        '201':
+          description: 등록 성공
+
+  /api/work-schedules/{id}:
+    put:
+      tags: [Attendance - Schedule]
+      summary: 근무 예정 수정
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/WorkScheduleRequest'
+      responses:
+        '200':
+          description: 수정 성공
+    delete:
+      tags: [Attendance - Schedule]
+      summary: 근무 예정 삭제
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            type: integer
+      responses:
+        '204':
+          description: 삭제 성공
+
+  /api/admin/work-schedules:
+    get:
+      tags: [Admin - Attendance]
+      summary: 전사 근무 예정 조회
+      description: CEO / ADMIN 전용
+      parameters:
+        - in: query
+          name: from
+          required: true
+          schema:
+            type: string
+            format: date
+        - in: query
+          name: to
+          required: true
+          schema:
+            type: string
+            format: date
+        - in: query
+          name: departmentId
+          schema:
+            type: integer
+        - in: query
+          name: userId
+          schema:
+            type: integer
+      responses:
+        '200':
+          description: 성공
+
+  # ════════════════════════════════════════════
+  # 근태 - 출퇴근 기록 (Attendance Records)
+  # ════════════════════════════════════════════
+
+  /api/attendance:
+    get:
+      tags: [Attendance - Record]
+      summary: 내 출퇴근 기록 조회
+      parameters:
+        - in: query
+          name: from
+          required: true
+          schema:
+            type: string
+            format: date
+        - in: query
+          name: to
+          required: true
+          schema:
+            type: string
+            format: date
+      responses:
+        '200':
+          description: 성공
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/ApiResponse'
+                  - type: object
+                    properties:
+                      data:
+                        type: array
+                        items:
+                          $ref: '#/components/schemas/AttendanceRecord'
+
+  /api/attendance/check-in:
+    post:
+      tags: [Attendance - Record]
+      summary: 출근 처리
+      responses:
+        '200':
+          description: 출근 처리 성공
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/ApiResponse'
+                  - type: object
+                    properties:
+                      data:
+                        $ref: '#/components/schemas/AttendanceRecord'
+
+  /api/attendance/check-out:
+    post:
+      tags: [Attendance - Record]
+      summary: 퇴근 처리
+      responses:
+        '200':
+          description: 퇴근 처리 성공
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/ApiResponse'
+                  - type: object
+                    properties:
+                      data:
+                        $ref: '#/components/schemas/AttendanceRecord'
+
+  /api/admin/attendance:
+    get:
+      tags: [Admin - Attendance]
+      summary: 전사 출퇴근 기록 조회
+      description: CEO / ADMIN 전용
+      parameters:
+        - in: query
+          name: from
+          required: true
+          schema:
+            type: string
+            format: date
+        - in: query
+          name: to
+          required: true
+          schema:
+            type: string
+            format: date
+        - in: query
+          name: departmentId
+          schema:
+            type: integer
+        - in: query
+          name: userId
+          schema:
+            type: integer
+        - in: query
+          name: status
+          schema:
+            type: string
+            enum: [NORMAL, LATE, EARLY_LEAVE, ABSENT]
+        - in: query
+          name: page
+          schema:
+            type: integer
+            default: 0
+        - in: query
+          name: size
+          schema:
+            type: integer
+            default: 20
+      responses:
+        '200':
+          description: 성공
+
+  # ════════════════════════════════════════════
+  # 근태 - 휴가 (Leave)
+  # ════════════════════════════════════════════
+
+  /api/leave-types:
+    get:
+      tags: [Attendance - Leave]
+      summary: 휴가 유형 목록 조회
+      responses:
+        '200':
+          description: 성공
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/ApiResponse'
+                  - type: object
+                    properties:
+                      data:
+                        type: array
+                        items:
+                          $ref: '#/components/schemas/LeaveType'
+
+  /api/leaves/balance:
+    get:
+      tags: [Attendance - Leave]
+      summary: 내 연차 잔여 조회
+      parameters:
+        - in: query
+          name: year
+          schema:
+            type: integer
+      responses:
+        '200':
+          description: 성공
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/ApiResponse'
+                  - type: object
+                    properties:
+                      data:
+                        $ref: '#/components/schemas/LeaveBalance'
+
+  /api/leaves:
+    get:
+      tags: [Attendance - Leave]
+      summary: 내 휴가 신청 목록
+      parameters:
+        - in: query
+          name: year
+          schema:
+            type: integer
+        - in: query
+          name: status
+          schema:
+            type: string
+            enum: [PENDING, APPROVED, REJECTED, CANCELED]
+      responses:
+        '200':
+          description: 성공
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/ApiResponse'
+                  - type: object
+                    properties:
+                      data:
+                        type: array
+                        items:
+                          $ref: '#/components/schemas/LeaveRequest'
+    post:
+      tags: [Attendance - Leave]
+      summary: 휴가 신청
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/LeaveRequestCreate'
+      responses:
+        '201':
+          description: 신청 성공
+
+  /api/leaves/{id}:
+    delete:
+      tags: [Attendance - Leave]
+      summary: 휴가 신청 취소
+      description: PENDING 상태인 경우만 취소 가능
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            type: integer
+      responses:
+        '204':
+          description: 취소 성공
+
+  /api/leaves/pending:
+    get:
+      tags: [Attendance - Leave]
+      summary: 승인 대기 휴가 목록
+      description: MANAGER / CEO / ADMIN 전용
+      parameters:
+        - in: query
+          name: departmentId
+          schema:
+            type: integer
+      responses:
+        '200':
+          description: 성공
+
+  /api/leaves/{id}/approve:
+    patch:
+      tags: [Attendance - Leave]
+      summary: 휴가 승인
+      description: MANAGER / CEO / ADMIN 전용
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                comment:
+                  type: string
+      responses:
+        '200':
+          description: 승인 성공
+
+  /api/leaves/{id}/reject:
+    patch:
+      tags: [Attendance - Leave]
+      summary: 휴가 반려
+      description: MANAGER / CEO / ADMIN 전용
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [comment]
+              properties:
+                comment:
+                  type: string
+      responses:
+        '200':
+          description: 반려 성공
+
+  # ════════════════════════════════════════════
+  # 공지사항 (Notices)
+  # ════════════════════════════════════════════
+
+  /api/notices:
+    get:
+      tags: [Notices]
+      summary: 공지사항 목록 조회
+      parameters:
+        - in: query
+          name: departmentId
+          schema:
+            type: integer
+          description: 미입력 시 전사 공지 + 내 부서 공지 반환
+        - in: query
+          name: keyword
+          schema:
+            type: string
+        - in: query
+          name: page
+          schema:
+            type: integer
+            default: 0
+        - in: query
+          name: size
+          schema:
+            type: integer
+            default: 20
+      responses:
+        '200':
+          description: 성공
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/ApiResponse'
+                  - type: object
+                    properties:
+                      data:
+                        type: object
+                        properties:
+                          content:
+                            type: array
+                            items:
+                              $ref: '#/components/schemas/NoticeSummary'
+                          meta:
+                            $ref: '#/components/schemas/PageMeta'
+    post:
+      tags: [Notices]
+      summary: 공지 작성
+      description: CEO / ADMIN 및 권한 위임받은 사용자
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/NoticeRequest'
+      responses:
+        '201':
+          description: 작성 성공
+
+  /api/notices/{id}:
+    get:
+      tags: [Notices]
+      summary: 공지 상세 조회
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            type: integer
+      responses:
+        '200':
+          description: 성공
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/ApiResponse'
+                  - type: object
+                    properties:
+                      data:
+                        $ref: '#/components/schemas/NoticeDetail'
+    put:
+      tags: [Notices]
+      summary: 공지 수정
+      description: 작성자 본인 또는 ADMIN
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/NoticeRequest'
+      responses:
+        '200':
+          description: 수정 성공
+    delete:
+      tags: [Notices]
+      summary: 공지 삭제
+      description: 작성자 본인 또는 ADMIN (soft delete)
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            type: integer
+      responses:
+        '204':
+          description: 삭제 성공
+
+  /api/admin/notice-permissions:
+    get:
+      tags: [Admin - Notices]
+      summary: 공지 CUD 권한 부여 목록 조회
+      description: CEO / ADMIN 전용
+      responses:
+        '200':
+          description: 성공
+    post:
+      tags: [Admin - Notices]
+      summary: 공지 CUD 권한 부여
+      description: CEO / ADMIN 전용
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [userId]
+              properties:
+                userId:
+                  type: integer
+      responses:
+        '201':
+          description: 권한 부여 성공
+
+  /api/admin/notice-permissions/{userId}:
+    delete:
+      tags: [Admin - Notices]
+      summary: 공지 CUD 권한 회수
+      description: CEO / ADMIN 전용
+      parameters:
+        - in: path
+          name: userId
+          required: true
+          schema:
+            type: integer
+      responses:
+        '204':
+          description: 권한 회수 성공
+
+  # ════════════════════════════════════════════
+  # 문서 결재 (Documents)
+  # ════════════════════════════════════════════
+
+  /api/document-templates:
+    get:
+      tags: [Documents - Templates]
+      summary: 결재 템플릿 목록 조회
+      responses:
+        '200':
+          description: 성공
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/ApiResponse'
+                  - type: object
+                    properties:
+                      data:
+                        type: array
+                        items:
+                          $ref: '#/components/schemas/DocumentTemplate'
+    post:
+      tags: [Documents - Templates]
+      summary: 결재 템플릿 생성
+      description: ADMIN 전용
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [name, contentSchema]
+              properties:
+                name:
+                  type: string
+                contentSchema:
+                  type: object
+      responses:
+        '201':
+          description: 생성 성공
+
+  /api/document-templates/{id}:
+    put:
+      tags: [Documents - Templates]
+      summary: 결재 템플릿 수정
+      description: ADMIN 전용
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                name:
+                  type: string
+                contentSchema:
+                  type: object
+                isActive:
+                  type: boolean
+      responses:
+        '200':
+          description: 수정 성공
+    delete:
+      tags: [Documents - Templates]
+      summary: 결재 템플릿 삭제
+      description: ADMIN 전용
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            type: integer
+      responses:
+        '204':
+          description: 삭제 성공
+
+  /api/documents:
+    get:
+      tags: [Documents]
+      summary: 내 문서 목록 조회
+      parameters:
+        - in: query
+          name: type
+          schema:
+            type: string
+            enum: [SENT, RECEIVED]
+          description: SENT=내가 기안, RECEIVED=내가 결재자인 문서
+        - in: query
+          name: status
+          schema:
+            type: string
+            enum: [DRAFT, IN_PROGRESS, APPROVED, REJECTED, CANCELED]
+        - in: query
+          name: page
+          schema:
+            type: integer
+            default: 0
+        - in: query
+          name: size
+          schema:
+            type: integer
+            default: 20
+      responses:
+        '200':
+          description: 성공
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/ApiResponse'
+                  - type: object
+                    properties:
+                      data:
+                        type: object
+                        properties:
+                          content:
+                            type: array
+                            items:
+                              $ref: '#/components/schemas/DocumentSummary'
+                          meta:
+                            $ref: '#/components/schemas/PageMeta'
+    post:
+      tags: [Documents]
+      summary: 문서 기안 작성
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/DocumentCreate'
+      responses:
+        '201':
+          description: 기안 성공
+
+  /api/documents/{id}:
+    get:
+      tags: [Documents]
+      summary: 문서 상세 조회
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            type: integer
+      responses:
+        '200':
+          description: 성공
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/ApiResponse'
+                  - type: object
+                    properties:
+                      data:
+                        $ref: '#/components/schemas/DocumentDetail'
+    put:
+      tags: [Documents]
+      summary: 문서 수정
+      description: DRAFT 상태인 경우만 수정 가능
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/DocumentCreate'
+      responses:
+        '200':
+          description: 수정 성공
+    delete:
+      tags: [Documents]
+      summary: 문서 취소
+      description: 기안자 본인만 가능. DRAFT / IN_PROGRESS 상태에서 CANCELED로 변경.
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            type: integer
+      responses:
+        '204':
+          description: 취소 성공
+
+  /api/documents/{id}/action:
+    patch:
+      tags: [Documents]
+      summary: 문서 결재 처리 (승인 / 반려)
+      description: 현재 결재 순서의 결재자만 가능
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ApprovalAction'
+      responses:
+        '200':
+          description: 처리 성공
+
+  /api/admin/documents:
+    get:
+      tags: [Admin - Documents]
+      summary: 전사 문서 목록 조회
+      description: CEO / ADMIN 전용
+      parameters:
+        - in: query
+          name: status
+          schema:
+            type: string
+            enum: [DRAFT, IN_PROGRESS, APPROVED, REJECTED, CANCELED]
+        - in: query
+          name: userId
+          schema:
+            type: integer
+        - in: query
+          name: departmentId
+          schema:
+            type: integer
+        - in: query
+          name: page
+          schema:
+            type: integer
+            default: 0
+        - in: query
+          name: size
+          schema:
+            type: integer
+            default: 20
+      responses:
+        '200':
+          description: 성공
+
+  # ════════════════════════════════════════════
+  # 캘린더 (Calendar)
+  # ════════════════════════════════════════════
+
+  /api/calendar/events:
+    get:
+      tags: [Calendar]
+      summary: 캘린더 이벤트 목록 조회
+      parameters:
+        - in: query
+          name: from
+          required: true
+          schema:
+            type: string
+            format: date
+        - in: query
+          name: to
+          required: true
+          schema:
+            type: string
+            format: date
+      responses:
+        '200':
+          description: 성공
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/ApiResponse'
+                  - type: object
+                    properties:
+                      data:
+                        type: array
+                        items:
+                          $ref: '#/components/schemas/CalendarEvent'
+    post:
+      tags: [Calendar]
+      summary: 이벤트 생성
+      description: 생성 시 Google Calendar와 자동 동기화 시도
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CalendarEventRequest'
+      responses:
+        '201':
+          description: 생성 성공
+
+  /api/calendar/events/{id}:
+    put:
+      tags: [Calendar]
+      summary: 이벤트 수정
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CalendarEventRequest'
+      responses:
+        '200':
+          description: 수정 성공
+    delete:
+      tags: [Calendar]
+      summary: 이벤트 삭제
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            type: integer
+      responses:
+        '204':
+          description: 삭제 성공
+
+  /api/calendar/sync:
+    post:
+      tags: [Calendar]
+      summary: Google Calendar 수동 동기화
+      description: SYNC_FAILED 이벤트 재시도 또는 전체 동기화 트리거
+      responses:
+        '200':
+          description: 동기화 완료
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/ApiResponse'
+                  - type: object
+                    properties:
+                      data:
+                        type: object
+                        properties:
+                          synced:
+                            type: integer
+                          failed:
+                            type: integer
+
+# ─────────────────────────────────────────────
+# 태그 정렬
+# ─────────────────────────────────────────────
+tags:
+  - name: Auth
+    description: 인증 (Google OAuth2 + JWT)
+  - name: Users
+    description: 사용자 / 프로필
+  - name: Departments
+    description: 부서 관리
+  - name: Attendance - Schedule
+    description: 근태 - 근무 예정 일정
+  - name: Attendance - Record
+    description: 근태 - 출퇴근 기록
+  - name: Attendance - Leave
+    description: 근태 - 휴가 신청
+  - name: Notices
+    description: 공지사항
+  - name: Documents
+    description: 문서 결재
+  - name: Documents - Templates
+    description: 결재 템플릿
+  - name: Calendar
+    description: 캘린더 (Google Calendar 연동)
+  - name: Admin - Users
+    description: 관리자 - 사용자 관리
+  - name: Admin - Attendance
+    description: 관리자 - 전사 근태 조회
+  - name: Admin - Notices
+    description: 관리자 - 공지 권한 관리
+  - name: Admin - Documents
+    description: 관리자 - 전사 문서 조회
