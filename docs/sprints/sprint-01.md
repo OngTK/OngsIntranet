@@ -125,6 +125,249 @@ Google OAuth2 기반 로그인 및 JWT 인증 플로우 완성.
 
 ---
 
+## DB 테이블 스키마
+
+### users
+
+```sql
+CREATE TABLE users (
+    id                           BIGINT        NOT NULL AUTO_INCREMENT,
+    google_id                    VARCHAR(255)  NOT NULL,
+    email                        VARCHAR(255)  NOT NULL,
+    name                         VARCHAR(100)  NOT NULL,
+    department_id                BIGINT        NULL,
+    role                         ENUM('EMPLOYEE','MANAGER','CEO','ADMIN')
+                                               NOT NULL DEFAULT 'EMPLOYEE',
+    position                     VARCHAR(100)  NULL     COMMENT '직책 (예: 과장)',
+    phone                        VARCHAR(20)   NULL,
+    profile_image_url            VARCHAR(500)  NULL,
+    google_calendar_refresh_token TEXT         NULL     COMMENT '암호화 저장',
+    is_active                    BOOLEAN       NOT NULL DEFAULT TRUE,
+    created_at                   DATETIME      NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    updated_at                   DATETIME      NOT NULL DEFAULT CURRENT_TIMESTAMP
+                                               ON UPDATE CURRENT_TIMESTAMP,
+    PRIMARY KEY (id),
+    UNIQUE KEY uq_users_google_id (google_id),
+    UNIQUE KEY uq_users_email    (email),
+    CONSTRAINT fk_users_department
+        FOREIGN KEY (department_id) REFERENCES departments (id)
+        ON DELETE SET NULL
+);
+```
+
+### refresh_tokens
+
+```sql
+CREATE TABLE refresh_tokens (
+    id         BIGINT       NOT NULL AUTO_INCREMENT,
+    user_id    BIGINT       NOT NULL,
+    token      TEXT         NOT NULL COMMENT 'SHA-256 해시 저장',
+    expires_at DATETIME     NOT NULL,
+    created_at DATETIME     NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    PRIMARY KEY (id),
+    CONSTRAINT fk_refresh_tokens_user
+        FOREIGN KEY (user_id) REFERENCES users (id)
+        ON DELETE CASCADE
+);
+```
+
+> **설계 노트**
+> - `refresh_tokens.token`은 원문이 아닌 SHA-256 해시값을 저장한다.  
+>   쿠키 탈취 후 DB 직접 접근으로 토큰을 복원하는 공격을 방어하기 위함.
+> - `users.google_calendar_refresh_token`은 AES-256 암호화 후 저장 (Spring `@Converter` 사용).
+> - `departments` 테이블이 먼저 생성되어 있어야 한다.
+
+---
+
+## API Request / Response 구조
+
+공통 응답 래퍼:
+```json
+{ "success": true,  "data": { ... }, "error": null }
+{ "success": false, "data": null,    "error": { "code": "...", "message": "..." } }
+```
+
+---
+
+### POST /auth/refresh
+
+Access Token 재발급. Refresh Token은 HttpOnly 쿠키에서 자동 전송.
+
+**Request**
+```
+POST /auth/refresh
+Cookie: refreshToken=<token>
+(Body 없음)
+```
+
+**Response 200**
+```json
+{
+  "success": true,
+  "data": {
+    "accessToken": "eyJhbGci...",
+    "expiresIn": 1800
+  },
+  "error": null
+}
+```
+
+**Response 401** — Refresh Token 만료 또는 존재하지 않음
+```json
+{
+  "success": false,
+  "data": null,
+  "error": {
+    "code": "REFRESH_TOKEN_INVALID",
+    "message": "Refresh Token이 유효하지 않습니다. 다시 로그인해주세요."
+  }
+}
+```
+
+---
+
+### POST /auth/logout
+
+**Request**
+```
+POST /auth/logout
+Authorization: Bearer <accessToken>
+Cookie: refreshToken=<token>
+(Body 없음)
+```
+
+**Response 200**
+```json
+{
+  "success": true,
+  "data": null,
+  "error": null
+}
+```
+- 응답과 함께 `Set-Cookie: refreshToken=; Max-Age=0; HttpOnly; Path=/` 헤더 포함 (쿠키 삭제)
+
+---
+
+### GET /api/users/me
+
+로그인한 사용자 본인 프로필 조회.
+
+**Request**
+```
+GET /api/users/me
+Authorization: Bearer <accessToken>
+```
+
+**Response 200**
+```json
+{
+  "success": true,
+  "data": {
+    "id": 1,
+    "name": "홍길동",
+    "email": "hong@company.com",
+    "department": "개발팀",
+    "position": "과장",
+    "profileImageUrl": "https://lh3.googleusercontent.com/...",
+    "phone": "010-1234-5678",
+    "role": "EMPLOYEE",
+    "isActive": true,
+    "createdAt": "2026-10-16T09:00:00Z"
+  },
+  "error": null
+}
+```
+
+**Response 401** — 토큰 없음 또는 만료
+```json
+{
+  "success": false,
+  "data": null,
+  "error": {
+    "code": "UNAUTHORIZED",
+    "message": "인증이 필요합니다."
+  }
+}
+```
+
+---
+
+## 테스트 케이스
+
+### TC-AUTH-01: 정상 로그인
+
+| 항목 | 내용 |
+|------|------|
+| 전제 조건 | 유효한 Google Workspace 계정 |
+| 입력 | `GET /auth/google` 접근 후 Google 계정 선택 |
+| 기대 결과 | 프론트엔드 홈(`/`)으로 리다이렉트, Access Token 메모리 저장 확인 |
+| 검증 방법 | 리다이렉트 후 `GET /api/users/me` 200 응답 확인 |
+
+### TC-AUTH-02: 최초 로그인 — User 자동 생성
+
+| 항목 | 내용 |
+|------|------|
+| 전제 조건 | DB에 해당 google_id 없음 |
+| 입력 | Google OAuth 로그인 완료 |
+| 기대 결과 | `users` 테이블에 레코드 생성, `role=EMPLOYEE`, `is_active=true` |
+| 검증 방법 | `GET /api/users/me` 응답의 `role`, `isActive` 확인 |
+
+### TC-AUTH-03: Access Token 만료 시 자동 재발급
+
+| 항목 | 내용 |
+|------|------|
+| 전제 조건 | 로그인 완료, Access Token 만료된 상태 (만료 시간 단축하여 테스트) |
+| 입력 | 만료된 Access Token으로 `GET /api/users/me` 요청 |
+| 기대 결과 | Axios 인터셉터가 401 감지 → `/auth/refresh` 자동 호출 → 원래 요청 재시도 → 200 응답 |
+| 검증 방법 | Network 탭에서 `/auth/refresh` 요청 및 원래 요청 재시도 확인 |
+
+### TC-AUTH-04: Refresh Token 만료 시 로그인 페이지 이동
+
+| 항목 | 내용 |
+|------|------|
+| 전제 조건 | Access Token 만료, Refresh Token도 만료 또는 DB에서 삭제된 상태 |
+| 입력 | 만료된 Access Token으로 API 요청 |
+| 기대 결과 | `/auth/refresh` 401 응답 → 프론트엔드 `/login`으로 리다이렉트 |
+| 검증 방법 | `/login` 페이지 진입 확인 |
+
+### TC-AUTH-05: 로그아웃
+
+| 항목 | 내용 |
+|------|------|
+| 전제 조건 | 로그인 완료 상태 |
+| 입력 | 로그아웃 버튼 클릭 → `POST /auth/logout` |
+| 기대 결과 | 응답 헤더에 쿠키 삭제 확인, 프론트엔드 `/login` 이동 |
+| 검증 방법 | 로그아웃 후 `POST /auth/refresh` 요청 시 401 응답 확인 (Refresh Token 무효화) |
+
+### TC-AUTH-06: 미인증 접근 차단
+
+| 항목 | 내용 |
+|------|------|
+| 전제 조건 | 비로그인 상태 |
+| 입력 | 브라우저에서 `/` 직접 접근 |
+| 기대 결과 | `/login`으로 리다이렉트 |
+| 검증 방법 | 주소창 URL 확인 |
+
+### TC-AUTH-07: 공개 엔드포인트 인증 불필요 확인
+
+| 항목 | 내용 |
+|------|------|
+| 전제 조건 | Authorization 헤더 없음 |
+| 입력 | `POST /auth/refresh` (쿠키 포함), `GET /auth/google` |
+| 기대 결과 | 401 없이 정상 처리 |
+| 검증 방법 | HTTP 응답 코드 확인 |
+
+### TC-AUTH-08: 비활성 계정 로그인 차단
+
+| 항목 | 내용 |
+|------|------|
+| 전제 조건 | `users.is_active = false`인 계정 |
+| 입력 | Google OAuth 로그인 완료 |
+| 기대 결과 | JWT 미발급, 에러 응답 (`code: ACCOUNT_DISABLED`) |
+| 검증 방법 | 로그인 페이지에 에러 메시지 표시 확인 |
+
+---
+
 ## 예상 소요
 
 | 영역 | 예상 시간 |
