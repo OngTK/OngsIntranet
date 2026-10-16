@@ -43,6 +43,7 @@ Google OAuth2 기반 로그인 및 JWT 인증 플로우 완성.
 - [ ] 인증 플로우 결정 사항 문서화 (`docs/decisions/003_auth_flow.md`)
 
 ### Backend (`feature/sprint-01-auth`)
+- [ ] `departments` 테이블 기본 구조 생성 (users FK 선행 조건) — `id`, `name`, `created_at`만 포함, 상세 설계는 이후 스프린트
 - [ ] Google OAuth2 의존성 추가 (`spring-boot-starter-oauth2-client`)
 - [ ] `application.yml` Google OAuth 클라이언트 설정 (환경 변수로 관리)
 - [ ] `User`, `RefreshToken` JPA 엔티티 작성
@@ -125,6 +126,48 @@ Google OAuth2 기반 로그인 및 JWT 인증 플로우 완성.
 
 ---
 
+## 환경변수 목록
+
+| 변수명 | 설명 | 예시 |
+|--------|------|------|
+| `GOOGLE_CLIENT_ID` | Google OAuth 클라이언트 ID | `123...apps.googleusercontent.com` |
+| `GOOGLE_CLIENT_SECRET` | Google OAuth 클라이언트 시크릿 | `GOCSPX-...` |
+| `JWT_SECRET` | JWT 서명 키 (256bit 이상) | — |
+| `JWT_ACCESS_EXPIRATION` | Access Token 만료 (ms) | `1800000` (30분) |
+| `JWT_REFRESH_EXPIRATION` | Refresh Token 만료 (ms) | `1209600000` (14일) |
+| `FRONTEND_REDIRECT_URI` | 로그인 성공 후 리다이렉트 URL | `http://localhost:5173/auth/callback` |
+| `DB_URL` | MySQL 접속 URL | `jdbc:mysql://localhost:3306/ongs_intranet` |
+| `DB_USERNAME` | DB 계정 | — |
+| `DB_PASSWORD` | DB 비밀번호 | — |
+
+> 로컬 개발: `application-local.yml` + `.env` 파일 사용 (`.gitignore` 등록 필수)  
+> 운영: AWS SSM Parameter Store 또는 환경 변수 직접 주입
+
+---
+
+## 패키지 구조 (Backend)
+
+```
+com.ongsintranet
+  ├── auth        — OAuth2 핸들러, JWT 유틸, Security 설정, AuthController
+  ├── user        — User 엔티티, UserRepository, UserService, UsersController
+  └── common      — ApiResponse 래퍼, GlobalExceptionHandler, 공통 상수
+```
+
+---
+
+## 라우트 구조 (Frontend)
+
+| 경로 | 컴포넌트 | 인증 필요 |
+|------|----------|----------|
+| `/login` | `LoginPage` | ✗ |
+| `/auth/callback` | `OAuthCallbackPage` | ✗ |
+| `/` | `HomePage` | ✓ |
+
+> 인증 필요 라우트는 `PrivateRoute`로 감싸며, 미인증 시 `/login`으로 리다이렉트.
+
+---
+
 ## DB 테이블 스키마
 
 ### users
@@ -185,6 +228,34 @@ CREATE TABLE refresh_tokens (
 ```json
 { "success": true,  "data": { ... }, "error": null }
 { "success": false, "data": null,    "error": { "code": "...", "message": "..." } }
+```
+
+---
+
+### GET /auth/google
+
+Google OAuth 로그인 페이지로 리다이렉트. 인증 불필요.
+
+```
+GET /auth/google
+→ 302 Redirect: https://accounts.google.com/o/oauth2/auth?...
+```
+
+---
+
+### GET /auth/google/callback
+
+Google 인증 완료 후 호출되는 콜백. JWT 발급 후 프론트엔드로 리다이렉트.
+
+```
+GET /auth/google/callback?code=<authorization_code>
+→ 302 Redirect: {FRONTEND_REDIRECT_URI}?token=<accessToken>
+  Set-Cookie: refreshToken=<token>; HttpOnly; Secure; SameSite=Lax; Max-Age=1209600; Path=/
+```
+
+**에러 시 (비활성 계정 등)**
+```
+→ 302 Redirect: {FRONTEND_REDIRECT_URI}/login?error=ACCOUNT_DISABLED
 ```
 
 ---
