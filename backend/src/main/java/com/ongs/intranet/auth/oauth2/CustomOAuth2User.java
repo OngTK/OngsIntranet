@@ -3,20 +3,22 @@ package com.ongs.intranet.auth.oauth2;
 import com.ongs.intranet.user.domain.User;
 import org.springframework.security.core.GrantedAuthority;
 import org.springframework.security.core.authority.SimpleGrantedAuthority;
-import org.springframework.security.oauth2.core.user.OAuth2User;
+import org.springframework.security.oauth2.core.oidc.OidcIdToken;
+import org.springframework.security.oauth2.core.oidc.OidcUserInfo;
+import org.springframework.security.oauth2.core.oidc.user.OidcUser;
 
 import java.util.Collection;
 import java.util.List;
 import java.util.Map;
 
-public class CustomOAuth2User implements OAuth2User {
+public class CustomOAuth2User implements OidcUser {
 
     private final User user;
-    private final Map<String, Object> attributes;
+    private final OidcUser delegate;
 
-    public CustomOAuth2User(User user, Map<String, Object> attributes) {
+    public CustomOAuth2User(User user, OidcUser delegate) {
         this.user = user;
-        this.attributes = attributes;
+        this.delegate = delegate;
     }
 
     public User getUser() {
@@ -25,7 +27,7 @@ public class CustomOAuth2User implements OAuth2User {
 
     @Override
     public Map<String, Object> getAttributes() {
-        return attributes;
+        return delegate.getAttributes();
     }
 
     @Override
@@ -36,5 +38,20 @@ public class CustomOAuth2User implements OAuth2User {
     @Override
     public String getName() {
         return String.valueOf(user.getId());
+    }
+
+    @Override
+    public Map<String, Object> getClaims() {
+        return delegate.getClaims();
+    }
+
+    @Override
+    public OidcUserInfo getUserInfo() {
+        return delegate.getUserInfo();
+    }
+
+    @Override
+    public OidcIdToken getIdToken() {
+        return delegate.getIdToken();
     }
 }

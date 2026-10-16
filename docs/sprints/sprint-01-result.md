@@ -64,12 +64,12 @@
 
 | TC | 내용 | 상태 |
 |----|------|------|
-| TC-AUTH-01 | 정상 로그인 | ⏳ 수동 검증 필요 |
-| TC-AUTH-02 | 최초 로그인 — User 자동 생성 | ⏳ 수동 검증 필요 |
+| TC-AUTH-01 | 정상 로그인 | ✅ 통과 |
+| TC-AUTH-02 | 최초 로그인 — User 자동 생성 | ✅ 통과 |
 | TC-AUTH-03 | Access Token 만료 시 자동 재발급 | ⏳ 수동 검증 필요 |
 | TC-AUTH-04 | Refresh Token 만료 시 로그인 페이지 이동 | ⏳ 수동 검증 필요 |
-| TC-AUTH-05 | 로그아웃 및 Refresh Token 무효화 | ⏳ 수동 검증 필요 |
-| TC-AUTH-06 | 미인증 접근 차단 → `/login` 리다이렉트 | ⏳ 수동 검증 필요 |
+| TC-AUTH-05 | 로그아웃 및 Refresh Token 무효화 | ✅ 통과 |
+| TC-AUTH-06 | 미인증 접근 차단 → `/login` 리다이렉트 | ✅ 통과 |
 | TC-AUTH-07 | 공개 엔드포인트 인증 불필요 확인 | ⏳ 수동 검증 필요 |
 | TC-AUTH-08 | 비활성 계정 로그인 차단 | ⏳ 수동 검증 필요 |
 
@@ -93,9 +93,20 @@
 
 ---
 
+## 통합 테스트 중 발견 및 수정된 버그
+
+| # | 파일 | 현상 | 원인 | 수정 |
+|---|------|------|------|------|
+| 1 | `build.gradle` | Flyway 마이그레이션 미실행 | Spring Boot 4.x에서 `flyway-core`만 추가하면 자동 구성 미포함 | `flyway-core` → `spring-boot-starter-flyway` |
+| 2 | `frontend/src/api/axios.ts` | `/login` 무한 새로고침 | `/auth/refresh` 401 실패 시 인터셉터가 다시 `/auth/refresh` 호출 → `window.location.href='/login'` 반복 | 인터셉터에서 `/auth/refresh` 요청 자체는 재시도 제외 |
+| 3 | `auth/oauth2/OAuth2UserService.java` | Google 로그인 500 오류 | Google OIDC 흐름에서 `DefaultOAuth2UserService`가 호출되지 않음 | `OidcUserService` 위임 방식으로 변경 |
+| 4 | `auth/oauth2/CustomOAuth2User.java` | `ClassCastException` | `DefaultOidcUser`를 `CustomOAuth2User`로 캐스팅 불가 | `OidcUser` 인터페이스 구현으로 변경 |
+| 5 | `auth/config/SecurityConfig.java` | OIDC 사용자 서비스 미적용 | `userService()` 등록 → OIDC 흐름에서 무시됨 | `oidcUserService()`로 변경 |
+| 6 | `frontend/vite.config.ts` | OAuth 콜백 무한 리다이렉트 | Vite `/auth` 프록시가 `/auth/callback?token=...`을 백엔드로 전달 → OAuth 재시작 루프 | `/auth` 프록시 규칙 제거 (axios는 절대 URL 사용) |
+
 ## 미결 사항
 
-- TC-AUTH-01~08 수동 검증 미완료 (환경 변수 / DB / Google OAuth 설정 필요)
+- TC-AUTH-03, TC-AUTH-04, TC-AUTH-07, TC-AUTH-08 수동 검증 미완료
 - `users.google_calendar_refresh_token` AES-256 암호화 미구현 (Calendar 스프린트에서 처리)
 - CORS 허용 오리진 (`http://localhost:5173`) 하드코딩 → 환경 변수화 검토 (다음 스프린트)
 
