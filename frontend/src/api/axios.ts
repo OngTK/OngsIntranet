@@ -1,14 +1,27 @@
 import axios from 'axios'
 
+let accessToken: string | null = null
+
+export function setAccessToken(token: string) {
+  accessToken = token
+}
+
+export function clearAccessToken() {
+  accessToken = null
+}
+
+export function getAccessToken() {
+  return accessToken
+}
+
 const api = axios.create({
-  baseURL: '/api',
+  baseURL: 'http://localhost:8080',
   withCredentials: true,
 })
 
 api.interceptors.request.use((config) => {
-  const token = sessionStorage.getItem('accessToken')
-  if (token) {
-    config.headers.Authorization = `Bearer ${token}`
+  if (accessToken) {
+    config.headers.Authorization = `Bearer ${accessToken}`
   }
   return config
 })
@@ -43,16 +56,20 @@ api.interceptors.response.use(
       isRefreshing = true
 
       try {
-        const { data } = await axios.post('/auth/refresh', {}, { withCredentials: true })
-        const newToken = data.data.accessToken
-        sessionStorage.setItem('accessToken', newToken)
+        const { data } = await axios.post(
+          'http://localhost:8080/auth/refresh',
+          {},
+          { withCredentials: true },
+        )
+        const newToken: string = data.data.accessToken
+        setAccessToken(newToken)
         processQueue(null, newToken)
         originalRequest.headers.Authorization = `Bearer ${newToken}`
         return api(originalRequest)
       } catch (refreshError) {
         processQueue(refreshError, null)
-        sessionStorage.removeItem('accessToken')
-        window.location.href = '/'
+        clearAccessToken()
+        window.location.href = '/login'
         return Promise.reject(refreshError)
       } finally {
         isRefreshing = false
@@ -60,7 +77,7 @@ api.interceptors.response.use(
     }
 
     return Promise.reject(error)
-  }
+  },
 )
 
 export default api

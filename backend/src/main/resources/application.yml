@@ -37,5 +37,8 @@ jwt:
   access-token-expiry: 1800      # 30분 (초)
   refresh-token-expiry: 1209600  # 14일 (초)
 
+app:
+  frontend-redirect-uri: ${FRONTEND_REDIRECT_URI:http://localhost:5173/auth/callback}
+
 server:
   port: 8080

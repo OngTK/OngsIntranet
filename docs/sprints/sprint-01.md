@@ -40,31 +40,31 @@ Google OAuth2 기반 로그인 및 JWT 인증 플로우 완성.
 
 ### 설계 (현재 브랜치)
 - [x] Sprint-01 계획 문서 작성 (`docs/sprints/sprint-01.md`)
-- [ ] 인증 플로우 결정 사항 문서화 (`docs/decisions/003_auth_flow.md`)
+- [x] 인증 플로우 결정 사항 문서화 (`docs/decisions/003_auth_flow.md`)
 
 ### Backend (`feature/sprint-01-auth`)
-- [ ] `departments` 테이블 기본 구조 생성 (users FK 선행 조건) — `id`, `name`, `created_at`만 포함, 상세 설계는 이후 스프린트
-- [ ] Google OAuth2 의존성 추가 (`spring-boot-starter-oauth2-client`)
-- [ ] `application.yml` Google OAuth 클라이언트 설정 (환경 변수로 관리)
-- [ ] `User`, `RefreshToken` JPA 엔티티 작성
-- [ ] `UserRepository`, `RefreshTokenRepository` 작성
-- [ ] `JwtProvider` — 토큰 생성·검증·파싱 유틸리티
-- [ ] `JwtAuthenticationFilter` — 요청마다 Access Token 검증 후 SecurityContext 설정
-- [ ] `SecurityConfig` — Spring Security 필터 체인 구성
-- [ ] `OAuth2UserService` — Google 계정 정보로 User 조회/생성
-- [ ] `AuthController` — `/auth/refresh`, `/auth/logout` 엔드포인트
-- [ ] `OAuth2SuccessHandler` — 로그인 성공 시 JWT 발급 및 프론트엔드 리다이렉트
-- [ ] `GlobalExceptionHandler` — 인증·인가 에러 응답 표준화
+- [x] `departments` 테이블 기본 구조 생성 (users FK 선행 조건) — `id`, `name`, `created_at`만 포함, 상세 설계는 이후 스프린트
+- [x] Google OAuth2 의존성 추가 (`spring-boot-starter-oauth2-client`)
+- [x] `application.yml` Google OAuth 클라이언트 설정 (환경 변수로 관리)
+- [x] `User`, `RefreshToken` JPA 엔티티 작성
+- [x] `UserRepository`, `RefreshTokenRepository` 작성
+- [x] `JwtProvider` — 토큰 생성·검증·파싱 유틸리티
+- [x] `JwtAuthenticationFilter` — 요청마다 Access Token 검증 후 SecurityContext 설정
+- [x] `SecurityConfig` — Spring Security 필터 체인 구성
+- [x] `OAuth2UserService` — Google 계정 정보로 User 조회/생성
+- [x] `AuthController` — `/auth/refresh`, `/auth/logout` 엔드포인트
+- [x] `OAuth2SuccessHandler` — 로그인 성공 시 JWT 발급 및 프론트엔드 리다이렉트
+- [x] `GlobalExceptionHandler` — 인증·인가 에러 응답 표준화
 
 ### Frontend (`feature/sprint-01-auth`)
-- [ ] React Router 설정 (기본 라우트 구조)
-- [ ] `AuthContext` 및 `useAuth` 훅
-- [ ] `PrivateRoute` 컴포넌트
-- [ ] 로그인 페이지 (`/login`) — Google OAuth 버튼
-- [ ] OAuth 콜백 페이지 (`/auth/callback`) — 토큰 파싱 및 저장
-- [ ] Axios 인스턴스 — 인터셉터 (요청 헤더 주입, 401 자동 재시도)
-- [ ] 기본 레이아웃 + 헤더 (로그아웃 버튼 포함)
-- [ ] 홈 페이지 skeleton (인증 후 진입점)
+- [x] React Router 설정 (기본 라우트 구조)
+- [x] `AuthContext` 및 `useAuth` 훅
+- [x] `PrivateRoute` 컴포넌트
+- [x] 로그인 페이지 (`/login`) — Google OAuth 버튼
+- [x] OAuth 콜백 페이지 (`/auth/callback`) — 토큰 파싱 및 저장
+- [x] Axios 인스턴스 — 인터셉터 (요청 헤더 주입, 401 자동 재시도)
+- [x] 기본 레이아웃 + 헤더 (로그아웃 버튼 포함)
+- [x] 홈 페이지 skeleton (인증 후 진입점)
 
 ---
 
