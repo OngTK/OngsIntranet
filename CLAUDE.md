@@ -78,19 +78,29 @@ Google Workspace 계정 기반으로 운영되며, Google Calendar와 연동하�
 ## 현재 상태
 
 - **최종 업데이트**: 2026-10-16
-- **완료된 스프린트**: 없음 (Sprint-01 코드 구현 완료, 수동 통합 테스트 미완료)
-- **진행 중**: Sprint-01 — 인증 기능 구현 완료, TC-AUTH-01~08 수동 검증 대기 중
+- **완료된 스프린트**: 없음 (Sprint-01 구현 및 부분 검증 완료, develop 머지 대기)
+- **진행 중**: Sprint-01 마무리 단계
 - **완료된 작업**:
-  - 프로젝트 초기 세팅 (Spring Boot 4.1.1 + React 19 + Vite, PR #1 머지)
-  - Sprint-01 설계 문서 (`docs/sprints/sprint-01.md`, `docs/decisions/003_auth_flow.md`) — `develop` 머지 완료
-  - Sprint-01 인증 기능 전체 구현 (`feature/sprint-01-auth` 브랜치, 커밋 완료)
-    - Backend: Flyway 마이그레이션 V1~V3, JwtProvider, SecurityConfig, OAuth2UserService/SuccessHandler, AuthController, UserController, GlobalExceptionHandler
+  - `2026-10-15` 프로젝트 초기 세팅 (Spring Boot 4.1.1 + React 19 + Vite, PR #1 → develop 머지)
+  - `2026-10-16` Sprint-01 설계 문서 작성 및 develop 머지
+    - `docs/sprints/sprint-01.md`: 스프린트 계획, DB 스키마, API 스펙, TC 8건
+    - `docs/decisions/003_auth_flow.md`: 인증 흐름 설계 결정 5건
+  - `2026-10-16` Sprint-01 인증 기능 전체 구현 (`feature/sprint-01-auth`)
+    - Backend: Flyway V1~V3, JwtProvider, SecurityConfig, OAuth2UserService/SuccessHandler, AuthController, UserController, GlobalExceptionHandler
     - Frontend: AuthContext, PrivateRoute, LoginPage, OAuthCallbackPage, HomePage, Layout, axios.ts 인터셉터
     - 빌드 검증: Gradle compileJava ✅, TypeScript tsc --noEmit ✅
-- **다음 작업**: TC-AUTH-01~08 수동 통합 테스트 → `develop` 머지 → Sprint-02 시작
+  - `2026-10-16` 통합 테스트 수행 및 발견 버그 6건 수정 (상세: `docs/sprints/sprint-01-result.md`)
+    - TC-AUTH-01 ✅ TC-AUTH-02 ✅ TC-AUTH-05 ✅ TC-AUTH-06 ✅
+- **다음 작업**:
+  1. TC-AUTH-03, 04, 07, 08 수동 검증 (선택)
+  2. `feature/sprint-01-auth` → `develop` 머지
+  3. Sprint-02 시작 (근태 관리 또는 프로필 관리)
 - **미결 사항**:
-  - TC-AUTH-01~08 수동 검증 미완료 (Google OAuth 자격증명 + MySQL 환경 필요)
-  - `feature/sprint-01-auth` → `develop` 머지 대기 중 (테스트 후 진행)
+  - TC-AUTH-03 (AT 만료 자동 재발급): `jwt.access-token-expiry: 5` 임시 설정 후 검증 필요
+  - TC-AUTH-04 (RT 만료 로그인 이동): RT 만료 대기 필요
+  - TC-AUTH-07 (공개 엔드포인트): `/actuator/health` 미인증 접근 확인 필요
+  - TC-AUTH-08 (비활성 계정 차단): DB에서 `is_active=false` 설정 후 검증 필요
+  - `feature/sprint-01-auth` → `develop` 머지 대기 중
 
 ## 브랜치 전략
 

@@ -1,6 +1,7 @@
 # Sprint-01 결과: 인증 (Authentication)
 
 > 작성일: 2026-10-16  
+> 최종 업데이트: 2026-10-16  
 > 브랜치: `feature/sprint-01-auth`
 
 ---
