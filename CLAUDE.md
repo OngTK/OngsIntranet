@@ -77,12 +77,20 @@ Google Workspace 계정 기반으로 운영되며, Google Calendar와 연동하�
 
 ## 현재 상태
 
-- **최종 업데이트**: 2026-10-15
-- **완료된 스프린트**: 없음
-- **진행 중**: Sprint-01
-- **완료된 작업**: 프로젝트 초기 세팅 (Spring Boot 4.1.1 + React 19 + Vite, PR #1 → develop 머지 완료)
-- **다음 작업**: Sprint-01 계획 문서 작성 (`docs/sprints/sprint-01.md`) → 인증 기능 구현
-- **미결 사항**: 없음
+- **최종 업데이트**: 2026-10-16
+- **완료된 스프린트**: 없음 (Sprint-01 코드 구현 완료, 수동 통합 테스트 미완료)
+- **진행 중**: Sprint-01 — 인증 기능 구현 완료, TC-AUTH-01~08 수동 검증 대기 중
+- **완료된 작업**:
+  - 프로젝트 초기 세팅 (Spring Boot 4.1.1 + React 19 + Vite, PR #1 머지)
+  - Sprint-01 설계 문서 (`docs/sprints/sprint-01.md`, `docs/decisions/003_auth_flow.md`) — `develop` 머지 완료
+  - Sprint-01 인증 기능 전체 구현 (`feature/sprint-01-auth` 브랜치, 커밋 완료)
+    - Backend: Flyway 마이그레이션 V1~V3, JwtProvider, SecurityConfig, OAuth2UserService/SuccessHandler, AuthController, UserController, GlobalExceptionHandler
+    - Frontend: AuthContext, PrivateRoute, LoginPage, OAuthCallbackPage, HomePage, Layout, axios.ts 인터셉터
+    - 빌드 검증: Gradle compileJava ✅, TypeScript tsc --noEmit ✅
+- **다음 작업**: TC-AUTH-01~08 수동 통합 테스트 → `develop` 머지 → Sprint-02 시작
+- **미결 사항**:
+  - TC-AUTH-01~08 수동 검증 미완료 (Google OAuth 자격증명 + MySQL 환경 필요)
+  - `feature/sprint-01-auth` → `develop` 머지 대기 중 (테스트 후 진행)
 
 ## 브랜치 전략
 
@@ -132,4 +140,4 @@ Google Workspace 계정 기반으로 운영되며, Google Calendar와 연동하�
 
 ## 알려진 이슈
 
-- 없음
+- IntelliJ에서 Lombok `@RequiredArgsConstructor` 사용 클래스에 "Flexible Constructor Bodies (Java 25)" 경고 표시 — Gradle 실제 빌드에는 무관, IDE 인식 문제로 판단
